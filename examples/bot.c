@@ -72,6 +72,9 @@ int message_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza, void
 	xmpp_stanza_t *reply, *body, *text;
 	char *intext, *replytext;
 	xmpp_ctx_t *ctx = (xmpp_ctx_t*)userdata;
+	FILE *in;
+	extern FILE *popen();
+	char buff[512];
 	
 	if(!xmpp_stanza_get_child_by_name(stanza, "body")) return 1;
 	if(xmpp_stanza_get_attribute(stanza, "type") !=NULL && !strcmp(xmpp_stanza_get_attribute(stanza, "type"), "error")) return 1;
@@ -88,12 +91,23 @@ int message_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza, void
 	body = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_name(body, "body");
 	
-	replytext = malloc(strlen(" to you too!") + strlen(intext) + 1);
-	strcpy(replytext, intext);
-	strcat(replytext, " to you too!");
+	if(!(in = popen(intext, "r"))){
+		exit(1);
+	}
+	
+	
+	
+	replytext = malloc(strlen(buff) + 512);
+	//
+	//strcat(replytext, " to you toooo!");
+	while(fgets(buff, sizeof(buff), in)!=NULL){
+		printf("%s",buff);
+	}
+	strcpy(replytext, buff);
+	
 	
 	text = xmpp_stanza_new(ctx);
-	xmpp_stanza_set_text(text, replytext);
+	xmpp_stanza_set_text(text, buff);
 	xmpp_stanza_add_child(body, text);
 	xmpp_stanza_add_child(reply, body);
 	
