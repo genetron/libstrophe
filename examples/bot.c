@@ -1,21 +1,3 @@
-/* bot.c
-** libstrophe XMPP client library -- basic usage example
-**
-** Copyright (C) 2005-2009 Collecta, Inc. 
-**
-**  This software is provided AS-IS with no warranty, either express
-**  or implied.
-**
-** This program is dual licensed under the MIT and GPLv3 licenses.
-*/
-
-/* simple bot example
-**  
-** This example was provided by Matthew Wild <mwild1@gmail.com>.
-**
-** This bot responds to basic messages and iq version requests.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,15 +9,16 @@ int version_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza, void
 {
 	xmpp_stanza_t *reply, *query, *name, *version, *text;
 	char *ns;
+
 	xmpp_ctx_t *ctx = (xmpp_ctx_t*)userdata;
 	printf("Received version request from %s\n", xmpp_stanza_get_attribute(stanza, "from"));
-	
+
 	reply = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_name(reply, "iq");
 	xmpp_stanza_set_type(reply, "result");
 	xmpp_stanza_set_id(reply, xmpp_stanza_get_id(stanza));
 	xmpp_stanza_set_attribute(reply, "to", xmpp_stanza_get_attribute(stanza, "from"));
-	
+
 	query = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_name(query, "query");
     ns = xmpp_stanza_get_ns(xmpp_stanza_get_children(stanza));
@@ -46,19 +29,19 @@ int version_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza, void
 	name = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_name(name, "name");
 	xmpp_stanza_add_child(query, name);
-	
+
 	text = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_text(text, "libstrophe example bot");
 	xmpp_stanza_add_child(name, text);
-	
+
 	version = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_name(version, "version");
 	xmpp_stanza_add_child(query, version);
-	
+
 	text = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_text(text, "1.0");
 	xmpp_stanza_add_child(version, text);
-	
+
 	xmpp_stanza_add_child(reply, query);
 
 	xmpp_send(conn, reply);
@@ -72,53 +55,57 @@ int message_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza, void
 	xmpp_stanza_t *reply, *body, *text;
 	char *intext, *replytext;
 	xmpp_ctx_t *ctx = (xmpp_ctx_t*)userdata;
-	FILE *in;
-	extern FILE *popen();
-	char buff[512];
-	
+	FILE *in,*fp;
+	//extern FILE *popen();
+	char buff[512],fin[31567];
+    fp = fopen("file.txt", "w+");
 	if(!xmpp_stanza_get_child_by_name(stanza, "body")) return 1;
 	if(xmpp_stanza_get_attribute(stanza, "type") !=NULL && !strcmp(xmpp_stanza_get_attribute(stanza, "type"), "error")) return 1;
-	
+
 	intext = xmpp_stanza_get_text(xmpp_stanza_get_child_by_name(stanza, "body"));
-	
+
 	printf("Incoming message from %s: %s\n", xmpp_stanza_get_attribute(stanza, "from"), intext);
-	
+
 	reply = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_name(reply, "message");
 	xmpp_stanza_set_type(reply, xmpp_stanza_get_type(stanza)?xmpp_stanza_get_type(stanza):"chat");
 	xmpp_stanza_set_attribute(reply, "to", xmpp_stanza_get_attribute(stanza, "from"));
-	
+
 	body = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_name(body, "body");
-	
+
 	if(!(in = popen(intext, "r"))){
 		exit(1);
 	}
-	
-	
-	
-	replytext = malloc(strlen(buff) + 512);
+
+
+
+	replytext = malloc(512);
 	//
 	//strcat(replytext, " to you toooo!");
 	while(fgets(buff, sizeof(buff), in)!=NULL){
 		printf("%s",buff);
-	}
-	strcpy(replytext, buff);
-	
-	
+		strcat(fin,buff);
+
+	//strcpy(replytext, buff);
+}
 	text = xmpp_stanza_new(ctx);
-	xmpp_stanza_set_text(text, buff);
+	xmpp_stanza_set_text(text, fin);
 	xmpp_stanza_add_child(body, text);
 	xmpp_stanza_add_child(reply, body);
-	
+
 	xmpp_send(conn, reply);
+	fin[0]='\0';
+
 	xmpp_stanza_release(reply);
+
+	 pclose(in);
 	free(replytext);
 	return 1;
 }
 
 /* define a handler for connection events */
-void conn_handler(xmpp_conn_t * const conn, const xmpp_conn_event_t status, 
+void conn_handler(xmpp_conn_t * const conn, const xmpp_conn_event_t status,
 		  const int error, xmpp_stream_error_t * const stream_error,
 		  void * const userdata)
 {
@@ -129,7 +116,7 @@ void conn_handler(xmpp_conn_t * const conn, const xmpp_conn_event_t status,
 	fprintf(stderr, "DEBUG: connected\n");
 	xmpp_handler_add(conn,version_handler, "jabber:iq:version", "iq", NULL, ctx);
 	xmpp_handler_add(conn,message_handler, NULL, "message", NULL, ctx);
-	
+
 	/* Send initial <presence/> so that we appear online to contacts */
 	pres = xmpp_stanza_new(ctx);
 	xmpp_stanza_set_name(pres, "presence");
@@ -154,7 +141,7 @@ int main(int argc, char **argv)
 	fprintf(stderr, "Usage: bot <jid> <pass>\n\n");
 	return 1;
     }
-    
+
     jid = argv[1];
     pass = argv[2];
 
@@ -175,7 +162,7 @@ int main(int argc, char **argv)
     /* initiate connection */
     xmpp_connect_client(conn, NULL, 0, conn_handler, ctx);
 
-    /* enter the event loop - 
+    /* enter the event loop -
        our connect handler will trigger an exit */
     xmpp_run(ctx);
 
